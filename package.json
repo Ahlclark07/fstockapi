@@ -1,0 +1,17 @@
+{
+  "name": "fstock-scraper",
+  "version": "1.0.0",
+  "description": "Scraping de disponibilité produits depuis deux fichiers Excel, avec sortie Excel et logs.",
+  "main": "scrape.js",
+  "scripts": {
+    "start": "node scrape.js --max=30",
+    "scrape": "node scrape.js"
+  },
+  "dependencies": {
+    "puppeteer": "latest",
+    "xlsx": "latest"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
