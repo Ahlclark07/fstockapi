@@ -1,21 +1,24 @@
-const fs = require('fs');
-const path = require('path');
-const xlsx = require('xlsx');
-const puppeteer = require('puppeteer');
+const fs = require("fs");
+const path = require("path");
+const xlsx = require("xlsx");
+const puppeteer = require("puppeteer");
 
 // Charge .env simple (sans dépendance)
 function loadDotEnv(filePath) {
   try {
     if (!fs.existsSync(filePath)) return;
-    const content = fs.readFileSync(filePath, 'utf8');
+    const content = fs.readFileSync(filePath, "utf8");
     for (const rawLine of content.split(/\r?\n/)) {
       const line = rawLine.trim();
-      if (!line || line.startsWith('#')) continue;
-      const eq = line.indexOf('=');
+      if (!line || line.startsWith("#")) continue;
+      const eq = line.indexOf("=");
       if (eq === -1) continue;
       const key = line.slice(0, eq).trim();
       let val = line.slice(eq + 1).trim();
-      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith('\'') && val.endsWith('\''))) {
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
         val = val.slice(1, -1);
       }
       if (process.env[key] === undefined) process.env[key] = val;
@@ -25,7 +28,7 @@ function loadDotEnv(filePath) {
   }
 }
 
-loadDotEnv(path.join(__dirname, '.env'));
+loadDotEnv(path.join(__dirname, ".env"));
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -33,14 +36,14 @@ function ensureDir(dir) {
 
 function nowTs() {
   const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
+  const pad = (n) => String(n).padStart(2, "0");
   return (
     d.getFullYear() +
-    '-' +
+    "-" +
     pad(d.getMonth() + 1) +
-    '-' +
+    "-" +
     pad(d.getDate()) +
-    '_' +
+    "_" +
     pad(d.getHours()) +
     pad(d.getMinutes()) +
     pad(d.getSeconds())
@@ -51,9 +54,9 @@ function resolveFromRoot(p) {
   return path.isAbsolute(p) ? p : path.join(__dirname, p);
 }
 
-const IN_DIR = resolveFromRoot(process.env.IN_DIR || 'in');
-const OUT_DIR = resolveFromRoot(process.env.OUT_DIR || 'out');
-const LOG_DIR = resolveFromRoot(process.env.LOG_DIR || 'log');
+const IN_DIR = resolveFromRoot(process.env.IN_DIR || "in");
+const OUT_DIR = resolveFromRoot(process.env.OUT_DIR || "out");
+const LOG_DIR = resolveFromRoot(process.env.LOG_DIR || "log");
 ensureDir(LOG_DIR);
 const LOG_FILE = path.join(LOG_DIR, `log-${nowTs()}.txt`);
 
@@ -85,34 +88,41 @@ function parseArgBool(name, defVal) {
     const m = a.match(re);
     if (m) {
       const v = m[1].toLowerCase();
-      if (v === 'true' || v === '1') return true;
-      if (v === 'false' || v === '0') return false;
+      if (v === "true" || v === "1") return true;
+      if (v === "false" || v === "0") return false;
     }
   }
   return defVal;
 }
 
-const ENV_MAX = process.env.MAX_ITEMS ? Number(process.env.MAX_ITEMS) : undefined;
-const ENV_CONC = process.env.CONCURRENCY ? Number(process.env.CONCURRENCY) : undefined;
+const ENV_MAX = process.env.MAX_ITEMS
+  ? Number(process.env.MAX_ITEMS)
+  : undefined;
+const ENV_CONC = process.env.CONCURRENCY
+  ? Number(process.env.CONCURRENCY)
+  : undefined;
 const ENV_HEADLESS = process.env.HEADLESS;
 
-const MAX_ITEMS = parseArgNum('max', ENV_MAX ?? 30); // limite test demandée
-const CONCURRENCY = parseArgNum('concurrency', ENV_CONC ?? 5);
-const HEADLESS = parseArgBool('headless',
-  ENV_HEADLESS !== undefined ? ['1','true','yes','on'].includes(String(ENV_HEADLESS).toLowerCase()) : true
+const MAX_ITEMS = parseArgNum("max", ENV_MAX ?? 30); // limite test demandée
+const CONCURRENCY = parseArgNum("concurrency", ENV_CONC ?? 5);
+const HEADLESS = parseArgBool(
+  "headless",
+  ENV_HEADLESS !== undefined
+    ? ["1", "true", "yes", "on"].includes(String(ENV_HEADLESS).toLowerCase())
+    : true
 );
 
 function sheetToRowsArray(sheet) {
   // Retourne un tableau de lignes (array) avec header:1 pour garder les colonnes fixes
-  return xlsx.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
+  return xlsx.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
 }
 
 function writeResultsToExcel(rows, outfile) {
   // rows: array of [reference, availability]
   const wb = xlsx.utils.book_new();
-  const header = [['Reference', 'Available']];
+  const header = [["Reference", "Available"]];
   const ws = xlsx.utils.aoa_to_sheet(header.concat(rows));
-  xlsx.utils.book_append_sheet(wb, ws, 'Disponibilites');
+  xlsx.utils.book_append_sheet(wb, ws, "Disponibilites");
   ensureDir(path.dirname(outfile));
   xlsx.writeFile(wb, outfile);
 }
@@ -124,7 +134,9 @@ async function withPage(browser, fn) {
     await page.setDefaultTimeout(30000);
     return await fn(page);
   } finally {
-    try { await page.close(); } catch (_) {}
+    try {
+      await page.close();
+    } catch (_) {}
   }
 }
 
@@ -132,7 +144,7 @@ async function checkAvailabilityFile1(browser, url) {
   return withPage(browser, async (page) => {
     let status = null;
     try {
-      const resp = await page.goto(url, { waitUntil: 'domcontentloaded' });
+      const resp = await page.goto(url, { waitUntil: "domcontentloaded" });
       status = resp ? resp.status() : null;
     } catch (e) {
       logLine(`Navigation error (file1) for ${url}: ${e.message}`);
@@ -142,21 +154,27 @@ async function checkAvailabilityFile1(browser, url) {
 
     try {
       const result = await page.evaluate(() => {
-        const img = document.querySelector('#p-availability img');
+        const img = document.querySelector("#p-availability img");
         if (!img) return 0;
         const val = (
-          img.getAttribute('alt') ||
-          img.getAttribute('title') ||
-          img.getAttribute('aria-label') ||
-          (img.alt || '')
+          img.getAttribute("alt") ||
+          img.getAttribute("title") ||
+          img.getAttribute("aria-label") ||
+          img.alt ||
+          ""
         )
           .trim()
           .toLowerCase();
-        if (val === 'disponibilità si') return 1;
-        const containerText = (img.closest('#p-availability')?.textContent || '')
+        if (val === "disponibilità si") return 1;
+        const containerText = (
+          img.closest("#p-availability")?.textContent || ""
+        )
           .trim()
           .toLowerCase();
-        return containerText === 'disponibilità si' || containerText.includes('disponibilità si') ? 1 : 0;
+        return containerText === "disponibilità si" ||
+          containerText.includes("disponibilità si")
+          ? 1
+          : 0;
       });
       return result ? 1 : 0;
     } catch (e) {
@@ -170,7 +188,7 @@ async function checkAvailabilityFile2(browser, url) {
   return withPage(browser, async (page) => {
     let status = null;
     try {
-      const resp = await page.goto(url, { waitUntil: 'domcontentloaded' });
+      const resp = await page.goto(url, { waitUntil: "domcontentloaded" });
       status = resp ? resp.status() : null;
     } catch (e) {
       logLine(`Navigation error (file2) for ${url}: ${e.message}`);
@@ -180,10 +198,10 @@ async function checkAvailabilityFile2(browser, url) {
 
     try {
       const result = await page.evaluate(() => {
-        const el = document.querySelector('#product-availability');
+        const el = document.querySelector("#product-availability");
         if (!el) return 0;
-        const t = (el.textContent || '').trim().toUpperCase();
-        return t.includes('EN STOCK') ? 1 : 0;
+        const t = (el.textContent || "").trim().toUpperCase();
+        return t.includes("EN STOCK") ? 1 : 0;
       });
       return result ? 1 : 0;
     } catch (e) {
@@ -204,7 +222,9 @@ async function runPool(items, worker, concurrency) {
         active++;
         Promise.resolve()
           .then(() => worker(items[idx], idx))
-          .then((res) => { results[idx] = res; })
+          .then((res) => {
+            results[idx] = res;
+          })
           .catch((err) => {
             results[idx] = err;
           })
@@ -228,11 +248,11 @@ function loadFirstExisting(paths) {
 
 async function processFile1(browser) {
   const infile = loadFirstExisting([
-    path.join(IN_DIR, 'fichier1.xlsx'),
-    path.join(IN_DIR, 'fichiers1.xlsx') // tolère typo
+    path.join(IN_DIR, "fichier1.xlsx"),
+    path.join(IN_DIR, "fichiers1.xlsx"), // tolère typo
   ]);
   if (!infile) {
-    logLine('Input manquant: in/fichier1.xlsx');
+    logLine("Input manquant: in/fichier1.xlsx");
     return;
   }
   const wb = xlsx.readFile(infile);
@@ -244,13 +264,13 @@ async function processFile1(browser) {
   for (const r of rows) {
     const id = r[0];
     const url = r[1];
-    if (!url || typeof url !== 'string') continue;
+    if (!url || typeof url !== "string") continue;
     const ref = `REF-${id}`;
     items.push({ ref, url });
     if (items.length >= MAX_ITEMS) break;
   }
   if (items.length === 0) {
-    logLine('Aucun élément valide trouvé dans fichier1.xlsx');
+    logLine("Aucun élément valide trouvé dans fichier1.xlsx");
     return;
   }
 
@@ -268,18 +288,18 @@ async function processFile1(browser) {
     CONCURRENCY
   );
 
-  const outfile = path.join(OUT_DIR, 'fichier1.availability.xlsx');
+  const outfile = path.join(OUT_DIR, "fichier1.availability.xlsx");
   writeResultsToExcel(results, outfile);
   console.log(`Ecrit: ${outfile}`);
 }
 
 async function processFile2(browser) {
   const infile = loadFirstExisting([
-    path.join(IN_DIR, 'fichier2.xlsx'),
-    path.join(IN_DIR, 'fichiers2.xlsx') // tolère typo
+    path.join(IN_DIR, "fichier2.xlsx"),
+    path.join(IN_DIR, "fichiers2.xlsx"), // tolère typo
   ]);
   if (!infile) {
-    logLine('Input manquant: in/fichier2.xlsx');
+    logLine("Input manquant: in/fichier2.xlsx");
     return;
   }
   const wb = xlsx.readFile(infile);
@@ -290,12 +310,12 @@ async function processFile2(browser) {
   for (const r of rows) {
     const ref = r[0];
     const url = r[1];
-    if (!ref || !url || typeof url !== 'string') continue;
+    if (!ref || !url || typeof url !== "string") continue;
     items.push({ ref: String(ref), url });
     if (items.length >= MAX_ITEMS) break;
   }
   if (items.length === 0) {
-    logLine('Aucun élément valide trouvé dans fichier2.xlsx');
+    logLine("Aucun élément valide trouvé dans fichier2.xlsx");
     return;
   }
 
@@ -313,7 +333,7 @@ async function processFile2(browser) {
     CONCURRENCY
   );
 
-  const outfile = path.join(OUT_DIR, 'fichier2.availability.xlsx');
+  const outfile = path.join(OUT_DIR, "fichier2.availability.xlsx");
   writeResultsToExcel(results, outfile);
   console.log(`Ecrit: ${outfile}`);
 }
@@ -323,15 +343,22 @@ async function main() {
   ensureDir(IN_DIR);
   ensureDir(LOG_DIR);
 
-  console.log('Démarrage scraping...');
-  console.log(`Limite: ${MAX_ITEMS}, Concurrency: ${CONCURRENCY}, Headless: ${HEADLESS}`);
+  console.log("Démarrage scraping...");
+  console.log(
+    `Limite: ${MAX_ITEMS}, Concurrency: ${CONCURRENCY}, Headless: ${HEADLESS}`
+  );
 
-  const browser = await puppeteer.launch({ headless: HEADLESS });
+  const browser = await puppeteer.launch({
+    headless: HEADLESS,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   try {
     await processFile1(browser);
     await processFile2(browser);
   } finally {
-    try { await browser.close(); } catch (_) {}
+    try {
+      await browser.close();
+    } catch (_) {}
   }
 }
 
