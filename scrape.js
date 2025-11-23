@@ -201,7 +201,7 @@ async function checkAvailabilityFile2(browser, url) {
         const el = document.querySelector("#product-availability");
         if (!el) return 0;
         const t = (el.textContent || "").trim().toUpperCase();
-        return t.includes("EN STOCK") ? 1 : 0;
+        return t.includes("EN STOCK") || t.includes("Disponible sur commande")? 1 : 0;
       });
       return result ? 1 : 0;
     } catch (e) {
@@ -353,7 +353,7 @@ async function main() {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   try {
-    await processFile1(browser);
+    // await processFile1(browser);
     await processFile2(browser);
   } finally {
     try {
