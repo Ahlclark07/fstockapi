@@ -197,13 +197,23 @@ async function checkAvailabilityFile2(browser, url) {
     if (status === 404) return 0;
 
     try {
-      const result = await page.evaluate(() => {
+      const [result, ref] = await page.evaluate(() => {
         const el = document.querySelector("#product-availability");
+        const ref = document.querySelector("span[itemprop='sku']");
         if (!el) return 0;
         const t = (el.textContent || "").trim().toUpperCase();
-        return t.includes("EN STOCK") || t.includes("Disponible sur commande")? 1 : 0;
+        return [t, ref.textContent];
+        // return t.includes("EN STOCK") || t.includes("Disponible sur commande")? 1 : 0;
       });
-      return result ? 1 : 0;
+      logLine(`Valeur ${url}: ${result}`);
+
+      return [
+        result.includes("EN STOCK") ||
+        result.includes("Disponible sur commande")
+          ? 1
+          : 0,
+        ref,
+      ];
     } catch (e) {
       logLine(`DOM eval error (file2) for ${url}: ${e.message}`);
       return 0;
@@ -323,8 +333,8 @@ async function processFile2(browser) {
     items,
     async (it) => {
       try {
-        const avail = await checkAvailabilityFile2(browser, it.url);
-        return [it.ref, avail];
+        const [avail, ref] = await checkAvailabilityFile2(browser, it.url);
+        return [it.ref, it.ref == ref ? avail : 1];
       } catch (e) {
         logLine(`Erreur item (file2) ${it.ref}: ${e.message}`);
         return [it.ref, 0];
